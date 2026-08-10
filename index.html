@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js Realistic Studio Dashboard</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+  <!-- WebGL Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Viewport Camera View Cube HUD -->
+  <div class="view-cube-bar">
+    <span class="hud-label">VIEW:</span>
+    <button class="hud-btn active" data-view="perspective">Perspective</button>
+    <button class="hud-btn" data-view="front">Front</button>
+    <button class="hud-btn" data-view="top">Top</button>
+    <button class="hud-btn" data-view="side">Side</button>
+    <button class="hud-btn" data-view="iso">Isometric</button>
+  </div>
+
+  <!-- Drag & Drop File Overlay -->
+  <div id="drag-overlay" class="drag-overlay">
+    <div class="drag-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+    </div>
+    <h2>Drop 3D Model File Here</h2>
+    <p>Supports .GLB, .GLTF, .OBJ, .FBX, .STL formats</p>
+  </div>
+
+  <!-- Top Navigation & Toolbar -->
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-badge">STUDIO 3D</span>
+      <span class="brand-sub">ULTRA PRO DASHBOARD</span>
+    </div>
+
+    <div class="quick-toolbar">
+      <!-- Mobile Mode Quick Toggle -->
+      <button id="btn-toggle-mobile-mode" class="tool-btn mobile-toggle-btn" title="Toggle Mobile Low-Power Optimization">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        Mobile Mode: <span id="txt-mobile-status">OFF</span>
+      </button>
+
+      <!-- Light Helpers Toggle -->
+      <button id="btn-toggle-helpers" class="tool-btn" title="Toggle Light Gizmos & Helpers">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Gizmos
+      </button>
+
+      <!-- Transform Controls Gizmo -->
+      <div class="segmented-control" style="width: auto;">
+        <button id="btn-gizmo-none" class="segment-btn active">None</button>
+        <button id="btn-gizmo-key" class="segment-btn">Key Light</button>
+        <button id="btn-gizmo-fill" class="segment-btn">Fill Light</button>
+        <button id="btn-gizmo-rim" class="segment-btn">Rim Light</button>
+      </div>
+
+      <!-- Sidebar Toggle -->
+      <button id="btn-toggle-sidebar" class="tool-btn" title="Collapse / Expand Control Panel">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      </button>
+
+      <!-- Reset Camera -->
+      <button id="btn-reset-cam" class="tool-btn" title="Reset Viewport Camera">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset Cam
+      </button>
+
+      <!-- Snapshot Export -->
+      <button id="btn-export-snapshot" class="tool-btn primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Render / Export
+      </button>
+    </div>
+  </header>
+
+  <!-- Sidebar Studio Controls -->
+  <aside id="sidebar" class="sidebar">
+    <nav class="tabs-header">
+      <button class="tab-btn active" data-tab="tab-model">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        Model
+      </button>
+
+      <button class="tab-btn" data-tab="tab-camera">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        Camera
+      </button>
+
+      <button class="tab-btn" data-tab="tab-lighting">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        Lighting
+      </button>
+
+      <button class="tab-btn" data-tab="tab-environment">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+        HDRI / Env
+      </button>
+
+      <button class="tab-btn" data-tab="tab-ground">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg>
+        Ground
+      </button>
+
+      <button class="tab-btn" data-tab="tab-postfx">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Post-FX
+      </button>
+
+      <button class="tab-btn" data-tab="tab-performance">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        Mobile Analytics
+      </button>
+
+      <button class="tab-btn" data-tab="tab-presets">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Presets
+      </button>
+    </nav>
+
+    <!-- TAB 1: MODEL LOADER -->
+    <div id="tab-model" class="tab-content active">
+      <div class="control-group">
+        <div class="group-title">
+          <span>Import Custom 3D Model</span>
+        </div>
+        <div style="text-align: center;">
+          <input type="file" id="file-input" accept=".glb,.gltf,.obj,.fbx,.stl" style="display: none;">
+          <button id="btn-upload-file" class="tool-btn primary" style="width: 100%; justify-content: center; padding: 12px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+            Choose File (.GLB, .OBJ, .FBX, .STL)
+          </button>
+          <p class="label" style="margin-top: 8px;">Or drag & drop file directly onto viewport</p>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Sample Studio Models</span>
+        </div>
+        <div class="segmented-control" style="flex-wrap: wrap; gap: 4px;">
+          <button class="segment-btn active sample-btn" data-sample="suzanne">Torus Knot</button>
+          <button class="segment-btn sample-btn" data-sample="spheres">PBR Spheres Grid</button>
+          <button class="segment-btn sample-btn" data-sample="teapot">Utah Teapot</button>
+          <button class="segment-btn sample-btn" data-sample="car">Cyber Car</button>
+        </div>
+      </div>
+
+      <!-- Sub-Mesh Hierarchy Inspector Tree -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Sub-Mesh Hierarchy Tree</span>
+        </div>
+        <div id="mesh-tree-container" class="mesh-tree-box">
+          <!-- Tree Nodes dynamically injected -->
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Material View Override</span>
+        </div>
+        <div class="segmented-control">
+          <button class="segment-btn active mat-mode-btn" data-mode="original">Original</button>
+          <button class="segment-btn mat-mode-btn" data-mode="clay">Clay</button>
+          <button class="segment-btn mat-mode-btn" data-mode="wireframe">Wireframe</button>
+          <button class="segment-btn mat-mode-btn" data-mode="normals">Normals</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Custom PBR Adjustments</span>
+        </div>
+        <div class="control-row">
+          <span class="label">Roughness Override</span>
+          <span id="val-mat-roughness" class="val-badge">0.50</span>
+        </div>
+        <input type="range" id="input-mat-roughness" min="0" max="1" step="0.01" value="0.5">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Metalness Override</span>
+          <span id="val-mat-metalness" class="val-badge">0.50</span>
+        </div>
+        <input type="range" id="input-mat-metalness" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <!-- TAB 2: CAMERA CONTROLS -->
+    <div id="tab-camera" class="tab-content">
+      <div class="control-group">
+        <div class="group-title">
+          <span>Camera Projection</span>
+        </div>
+        <div class="segmented-control">
+          <button id="btn-proj-persp" class="segment-btn active">Perspective</button>
+          <button id="btn-proj-ortho" class="segment-btn">Orthographic</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Field of View (FOV)</span>
+        </div>
+        <div class="control-row">
+          <span class="label">FOV Angle</span>
+          <span id="val-camera-fov" class="val-badge">45°</span>
+        </div>
+        <input type="range" id="input-camera-fov" min="15" max="100" step="1" value="45">
+      </div>
+    </div>
+
+    <!-- TAB 3: LIGHTING CONTROLS -->
+    <div id="tab-lighting" class="tab-content">
+      <!-- Key Light -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Key Light (Main Sun)</span>
+          <label class="switch">
+            <input type="checkbox" id="check-key-light" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Color</span>
+          <input type="color" id="color-key-light" value="#ffffff">
+        </div>
+        <div class="control-row">
+          <span class="label">Color Temp (Kelvin)</span>
+          <span id="val-key-kelvin" class="val-badge">6500K</span>
+        </div>
+        <input type="range" id="input-key-kelvin" min="2000" max="10000" step="100" value="6500">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Intensity</span>
+          <span id="val-key-intensity" class="val-badge">2.5</span>
+        </div>
+        <input type="range" id="input-key-intensity" min="0" max="10" step="0.1" value="2.5">
+      </div>
+
+      <!-- Fill Light -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Fill Light</span>
+          <label class="switch">
+            <input type="checkbox" id="check-fill-light" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Color</span>
+          <input type="color" id="color-fill-light" value="#e8f0fe">
+        </div>
+        <div class="control-row">
+          <span class="label">Color Temp (Kelvin)</span>
+          <span id="val-fill-kelvin" class="val-badge">7500K</span>
+        </div>
+        <input type="range" id="input-fill-kelvin" min="2000" max="10000" step="100" value="7500">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Intensity</span>
+          <span id="val-fill-intensity" class="val-badge">1.2</span>
+        </div>
+        <input type="range" id="input-fill-intensity" min="0" max="10" step="0.1" value="1.2">
+      </div>
+
+      <!-- Rim Light -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Rim / Back Light</span>
+          <label class="switch">
+            <input type="checkbox" id="check-rim-light" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Color</span>
+          <input type="color" id="color-rim-light" value="#ffffff">
+        </div>
+        <div class="control-row">
+          <span class="label">Intensity</span>
+          <span id="val-rim-intensity" class="val-badge">1.8</span>
+        </div>
+        <input type="range" id="input-rim-intensity" min="0" max="10" step="0.1" value="1.8">
+      </div>
+
+      <!-- Ambient & Hemisphere Light -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Ambient & Sky Light</span>
+        </div>
+        <div class="control-row">
+          <span class="label">Ambient Color</span>
+          <input type="color" id="color-ambient-light" value="#ffffff">
+        </div>
+        <div class="control-row">
+          <span class="label">Ambient Intensity</span>
+          <span id="val-ambient-intensity" class="val-badge">0.4</span>
+        </div>
+        <input type="range" id="input-ambient-intensity" min="0" max="2" step="0.05" value="0.4">
+      </div>
+    </div>
+
+    <!-- TAB 4: HDRI & ENVIRONMENT -->
+    <div id="tab-environment" class="tab-content">
+      <div class="control-group">
+        <div class="group-title">
+          <span>Background Display Mode</span>
+        </div>
+        <div class="segmented-control">
+          <button class="segment-btn active bg-mode-btn" data-bg="color">Color</button>
+          <button class="segment-btn bg-mode-btn" data-bg="gradient">Gradient</button>
+          <button class="segment-btn bg-mode-btn" data-bg="hdri">HDRI</button>
+          <button class="segment-btn bg-mode-btn" data-bg="transparent">Transparent</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Background Solid Color</span>
+        </div>
+        <div class="control-row">
+          <span class="label">Background Color</span>
+          <input type="color" id="color-bg" value="#14171d">
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>HDRI Environment Settings</span>
+        </div>
+        <div class="control-row">
+          <span class="label">HDRI Intensity</span>
+          <span id="val-env-intensity" class="val-badge">1.0</span>
+        </div>
+        <input type="range" id="input-env-intensity" min="0" max="5" step="0.1" value="1.0">
+
+        <div class="control-row" style="margin-top: 12px;">
+          <span class="label">Background Blur</span>
+          <span id="val-env-blur" class="val-badge">0.20</span>
+        </div>
+        <input type="range" id="input-env-blur" min="0" max="1" step="0.05" value="0.2">
+
+        <div class="control-row" style="margin-top: 12px;">
+          <span class="label">Environment Rotation</span>
+          <span id="val-env-rotation" class="val-badge">0°</span>
+        </div>
+        <input type="range" id="input-env-rotation" min="0" max="360" step="1" value="0">
+      </div>
+    </div>
+
+    <!-- TAB 5: GROUND & SHADOW CATCHER -->
+    <div id="tab-ground" class="tab-content">
+      <div class="control-group">
+        <div class="group-title">
+          <span>Shadow Catcher Plane</span>
+          <label class="switch">
+            <input type="checkbox" id="check-shadow-catcher" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Shadow Opacity</span>
+          <span id="val-shadow-opacity" class="val-badge">0.45</span>
+        </div>
+        <input type="range" id="input-shadow-opacity" min="0" max="1" step="0.05" value="0.45">
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Reflective Floor Material</span>
+          <label class="switch">
+            <input type="checkbox" id="check-floor" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Floor Color</span>
+          <input type="color" id="color-floor" value="#1c2029">
+        </div>
+        <div class="control-row">
+          <span class="label">Roughness</span>
+          <span id="val-floor-roughness" class="val-badge">0.40</span>
+        </div>
+        <input type="range" id="input-floor-roughness" min="0" max="1" step="0.02" value="0.4">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Metalness / Reflection</span>
+          <span id="val-floor-metalness" class="val-badge">0.10</span>
+        </div>
+        <input type="range" id="input-floor-metalness" min="0" max="1" step="0.02" value="0.1">
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Grid Helper</span>
+          <label class="switch">
+            <input type="checkbox" id="check-grid">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: POST PROCESSING -->
+    <div id="tab-postfx" class="tab-content">
+      <div class="control-group">
+        <div class="group-title">
+          <span>Tone Mapping & Exposure</span>
+        </div>
+        <div class="control-row">
+          <span class="label">Algorithm</span>
+          <select id="select-tonemapping">
+            <option value="ACESFilmic">ACES Filmic (Cinematic)</option>
+            <option value="Reinhard">Reinhard (Soft highlight)</option>
+            <option value="Cineon">Cineon</option>
+            <option value="Linear">Linear (Unprocessed)</option>
+          </select>
+        </div>
+        <div class="control-row">
+          <span class="label">Exposure</span>
+          <span id="val-exposure" class="val-badge">1.10</span>
+        </div>
+        <input type="range" id="input-exposure" min="0.2" max="3" step="0.05" value="1.1">
+      </div>
+
+      <div class="control-group">
+        <div class="group-title">
+          <span>Bloom Effect</span>
+          <label class="switch">
+            <input type="checkbox" id="check-bloom" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="control-row">
+          <span class="label">Threshold</span>
+          <span id="val-bloom-threshold" class="val-badge">0.85</span>
+        </div>
+        <input type="range" id="input-bloom-threshold" min="0" max="1" step="0.05" value="0.85">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Strength</span>
+          <span id="val-bloom-strength" class="val-badge">0.30</span>
+        </div>
+        <input type="range" id="input-bloom-strength" min="0" max="2" step="0.05" value="0.3">
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Radius</span>
+          <span id="val-bloom-radius" class="val-badge">0.40</span>
+        </div>
+        <input type="range" id="input-bloom-radius" min="0" max="1" step="0.05" value="0.4">
+      </div>
+    </div>
+
+    <!-- TAB 7: MOBILE & DRAW CALL ANALYTICS -->
+    <div id="tab-performance" class="tab-content">
+      <!-- Mobile Health Badge Score -->
+      <div class="health-card">
+        <div class="health-score-ring">
+          <span id="health-grade-text" class="health-grade grade-a">A+</span>
+        </div>
+        <div class="health-details">
+          <h4 id="health-status-title">Mobile Ready</h4>
+          <p id="health-status-desc">Scene rendering within high-performance mobile budget</p>
+        </div>
+      </div>
+
+      <!-- Realtime Render Stats -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Real-time Rendering Metrics</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">Draw Calls</span>
+            <span id="metric-draw-calls" class="stat-value text-accent">12</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">FPS</span>
+            <span id="metric-fps" class="stat-value text-green">60</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Triangles</span>
+            <span id="metric-triangles" class="stat-value">8,192</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Textures VRAM</span>
+            <span id="metric-textures" class="stat-value">2</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Geometries</span>
+            <span id="metric-geometries" class="stat-value">1</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Pixel Ratio</span>
+            <span id="metric-pixel-ratio" class="stat-value">2.0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pass-by-Pass Draw Call Breakdown -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Draw Call Pass Breakdown</span>
+        </div>
+        <table class="pass-table">
+          <thead>
+            <tr>
+              <th>Render Pass</th>
+              <th>Calls</th>
+              <th>Impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Key Light Shadow Pass</td>
+              <td id="pass-shadow-calls">1</td>
+              <td><span class="badge-tag green">Low</span></td>
+            </tr>
+            <tr>
+              <td>Main Scene Geometry Pass</td>
+              <td id="pass-scene-calls">11</td>
+              <td><span class="badge-tag green">Optimal</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- GPU Hardware Diagnostics -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>GPU Hardware Diagnostics</span>
+        </div>
+        <div class="gpu-info-box">
+          <div class="gpu-row">
+            <span class="label">GPU Renderer</span>
+            <span id="gpu-renderer-name" class="gpu-val">Detecting...</span>
+          </div>
+          <div class="gpu-row">
+            <span class="label">WebGL Version</span>
+            <span id="gpu-webgl-ver" class="gpu-val">WebGL 2.0</span>
+          </div>
+          <div class="gpu-row">
+            <span class="label">Max Texture Size</span>
+            <span id="gpu-max-tex" class="gpu-val">16384x16384</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Optimization Toggle -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Mobile Power Saver Preset</span>
+          <label class="switch">
+            <input type="checkbox" id="check-mobile-preset">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="label" style="line-height: 1.4; margin-top: 6px;">
+          Caps DPR to 1.0, reduces shadow map memory to 1024x1024, and turns off bloom to double battery life & smooth out low-end GPUs.
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB 8: PRESETS -->
+    <div id="tab-presets" class="tab-content">
+      <div class="group-title" style="margin-bottom: 12px;">
+        <span>Select Studio Preset</span>
+      </div>
+      <div class="presets-grid" id="presets-container">
+        <!-- Preset Cards injected dynamically -->
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- Bottom Status Bar -->
+  <footer class="bottom-bar">
+    <div class="status-item">
+      <span>MODEL:</span>
+      <span id="status-model-name" class="status-highlight">Torus Knot</span>
+    </div>
+    <div class="status-item">
+      <span>DRAW CALLS:</span>
+      <span id="status-draw-calls" class="status-highlight">12</span>
+    </div>
+    <div class="status-item">
+      <span>TRIANGLES:</span>
+      <span id="status-poly-count" class="status-highlight">8,192</span>
+    </div>
+    <div class="status-item">
+      <span>FPS:</span>
+      <span id="status-fps" class="status-highlight" style="color: #10b981;">60</span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+@echo off
+echo Launching Three.js Studio...
+start "" http://localhost:5173/
+call npm run dev -- --host
