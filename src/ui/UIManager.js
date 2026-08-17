@@ -9,7 +9,7 @@ export class UIManager {
     this.postProcessing = sceneManager.postProcessing;
     this.modelLoader = sceneManager.modelLoader;
 
-    this.currentModelInfo = { name: 'Torus Knot', polyCount: 8192, vertexCount: 4224, subMeshes: [] };
+    this.currentModelInfo = { name: 'Torus Knot', instanceCount: 1, polyCount: 8192, vertexCount: 4224, subMeshes: [] };
 
     this.initTabNavigation();
     this.initViewCubeHUD();
@@ -17,6 +17,7 @@ export class UIManager {
     this.initFileUploader();
     this.initSampleModels();
     this.initMaterialModes();
+    this.initInstancingControls();
     this.initLightingControls();
     this.initEnvironmentControls();
     this.initGroundControls();
@@ -127,6 +128,69 @@ export class UIManager {
     });
   }
 
+  initInstancingControls() {
+    const inputCount = document.getElementById('input-instance-count');
+    const valCount = document.getElementById('val-instance-count');
+    const presetBtns = document.querySelectorAll('.inst-preset-btn');
+
+    const updateCount = (cnt) => {
+      cnt = Math.max(1, Math.min(100, cnt));
+      inputCount.value = cnt;
+      valCount.textContent = `${cnt} Cop${cnt > 1 ? 'ies' : 'y'}`;
+      this.modelLoader.setInstanceCount(cnt);
+      presetBtns.forEach(b => {
+        b.classList.toggle('active', parseInt(b.getAttribute('data-count')) === cnt);
+      });
+    };
+
+    inputCount.addEventListener('input', (e) => updateCount(parseInt(e.target.value)));
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        updateCount(parseInt(btn.getAttribute('data-count')));
+      });
+    });
+
+    const inputSpacing = document.getElementById('input-instance-spacing');
+    const valSpacing = document.getElementById('val-instance-spacing');
+
+    inputSpacing.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valSpacing.textContent = `${v.toFixed(1)}m`;
+      this.modelLoader.setInstanceSpacing(v);
+    });
+
+    // Animation Controls
+    const btnPlay = document.getElementById('btn-anim-play');
+    btnPlay.addEventListener('click', () => {
+      this.modelLoader.toggleAnimationPlay();
+      btnPlay.classList.toggle('active', this.modelLoader.isPlayingAnimation);
+    });
+
+    const selectClip = document.getElementById('select-anim-clip');
+    selectClip.addEventListener('change', (e) => {
+      this.modelLoader.setAnimationClip(parseInt(e.target.value));
+    });
+
+    const animModeBtns = document.querySelectorAll('.anim-mode-btn');
+    animModeBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        animModeBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.getAttribute('data-mode');
+        this.modelLoader.setAnimationMode(mode);
+      });
+    });
+
+    const inputSpeed = document.getElementById('input-anim-speed');
+    const valSpeed = document.getElementById('val-anim-speed');
+    inputSpeed.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      valSpeed.textContent = `${v.toFixed(1)}x`;
+      this.modelLoader.setAnimationSpeed(v);
+    });
+  }
+
   renderMeshTree(subMeshes) {
     const container = document.getElementById('mesh-tree-container');
     container.innerHTML = '';
@@ -190,7 +254,6 @@ export class UIManager {
   }
 
   initLightingControls() {
-    // Key Light & Kelvin
     const checkKey = document.getElementById('check-key-light');
     const colorKey = document.getElementById('color-key-light');
     const inputKeyKelvin = document.getElementById('input-key-kelvin');
@@ -217,7 +280,6 @@ export class UIManager {
       this.lighting.keyLight.intensity = v;
     });
 
-    // Fill Light & Kelvin
     const checkFill = document.getElementById('check-fill-light');
     const colorFill = document.getElementById('color-fill-light');
     const inputFillKelvin = document.getElementById('input-fill-kelvin');
@@ -244,7 +306,6 @@ export class UIManager {
       this.lighting.fillLight.intensity = v;
     });
 
-    // Rim Light
     const checkRim = document.getElementById('check-rim-light');
     const colorRim = document.getElementById('color-rim-light');
     const inputRimInt = document.getElementById('input-rim-intensity');
@@ -263,7 +324,6 @@ export class UIManager {
       this.lighting.rimLight.intensity = v;
     });
 
-    // Ambient Light
     const colorAmbient = document.getElementById('color-ambient-light');
     const inputAmbientInt = document.getElementById('input-ambient-intensity');
     const valAmbientInt = document.getElementById('val-ambient-intensity');
@@ -452,7 +512,6 @@ export class UIManager {
   }
 
   initToolbar() {
-    // Sidebar Collapse
     const btnSidebar = document.getElementById('btn-toggle-sidebar');
     const sidebar = document.getElementById('sidebar');
     btnSidebar.addEventListener('click', () => {
@@ -513,16 +572,38 @@ export class UIManager {
   updateModelStats(info) {
     this.currentModelInfo = info;
     document.getElementById('status-model-name').textContent = info.name || '3D Model';
+    document.getElementById('status-instance-count').textContent = `${info.instanceCount || 1}x`;
+
+    // Populate Animation Dropdown
+    const selectClip = document.getElementById('select-anim-clip');
+    selectClip.innerHTML = '';
+
+    if (info.animations && info.animations.length > 0) {
+      info.animations.forEach((name, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = `${name} (Clip ${i})`;
+        selectClip.appendChild(opt);
+      });
+    } else {
+      const opt = document.createElement('option');
+      opt.value = 0;
+      opt.textContent = 'No Embedded Animations';
+      selectClip.appendChild(opt);
+    }
+
     this.renderMeshTree(info.subMeshes);
   }
 
   startPerformanceTicker() {
     setInterval(() => {
       const stats = this.sceneManager.getPerformanceStats();
+      const instCount = this.modelLoader.instanceCount || 1;
 
       document.getElementById('status-draw-calls').textContent = stats.drawCalls;
       document.getElementById('status-poly-count').textContent = stats.triangles.toLocaleString();
-      
+      document.getElementById('status-instance-count').textContent = `${instCount}x`;
+
       const statusFps = document.getElementById('status-fps');
       statusFps.textContent = stats.fps;
       if (stats.fps >= 50) statusFps.style.color = '#10b981';
@@ -539,6 +620,13 @@ export class UIManager {
       document.getElementById('pass-shadow-calls').textContent = stats.shadowPassCalls;
       document.getElementById('pass-scene-calls').textContent = stats.scenePassCalls;
 
+      // Instancing tab readouts
+      document.getElementById('readout-inst-count').textContent = `${instCount} Cop${instCount > 1 ? 'ies' : 'y'}`;
+      document.getElementById('readout-draw-calls').textContent = `${stats.drawCalls} Calls`;
+      const ratio = (stats.drawCalls / instCount).toFixed(1);
+      document.getElementById('readout-call-ratio').textContent = `${ratio} Calls/Inst`;
+
+      // Health rating
       const healthCard = document.querySelector('.health-card');
       const gradeEl = document.getElementById('health-grade-text');
       const titleEl = document.getElementById('health-status-title');

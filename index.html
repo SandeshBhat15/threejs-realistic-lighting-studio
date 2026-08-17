@@ -34,7 +34,7 @@
   <header class="top-bar">
     <div class="brand">
       <span class="brand-badge">STUDIO 3D</span>
-      <span class="brand-sub">ULTRA PRO DASHBOARD</span>
+      <span class="brand-sub">INSTANCING & ANIMATION</span>
     </div>
 
     <div class="quick-toolbar">
@@ -83,6 +83,11 @@
       <button class="tab-btn active" data-tab="tab-model">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         Model
+      </button>
+
+      <button class="tab-btn" data-tab="tab-instancing">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+        Instancing
       </button>
 
       <button class="tab-btn" data-tab="tab-camera">
@@ -189,7 +194,94 @@
       </div>
     </div>
 
-    <!-- TAB 2: CAMERA CONTROLS -->
+    <!-- TAB 2: INSTANCING & ANIMATION PLAYER -->
+    <div id="tab-instancing" class="tab-content">
+      <!-- Instance Spawner -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Model Duplication & Instancing Grid</span>
+        </div>
+        <div class="control-row">
+          <span class="label">Instance Copies</span>
+          <span id="val-instance-count" class="val-badge">1 Copy</span>
+        </div>
+        <input type="range" id="input-instance-count" min="1" max="100" step="1" value="1">
+
+        <div class="segmented-control" style="margin-top: 10px;">
+          <button class="segment-btn inst-preset-btn active" data-count="1">1x</button>
+          <button class="segment-btn inst-preset-btn" data-count="5">5x</button>
+          <button class="segment-btn inst-preset-btn" data-count="10">10x</button>
+          <button class="segment-btn inst-preset-btn" data-count="25">25x</button>
+          <button class="segment-btn inst-preset-btn" data-count="50">50x</button>
+          <button class="segment-btn inst-preset-btn" data-count="100">100x</button>
+        </div>
+
+        <div class="control-row" style="margin-top: 14px;">
+          <span class="label">Grid Spacing</span>
+          <span id="val-instance-spacing" class="val-badge">3.0m</span>
+        </div>
+        <input type="range" id="input-instance-spacing" min="1" max="10" step="0.5" value="3.0">
+      </div>
+
+      <!-- Animation Player Controller -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Animation Player</span>
+          <button id="btn-anim-play" class="tool-btn" style="padding: 4px 10px; font-size: 0.75rem;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Play/Pause
+          </button>
+        </div>
+
+        <div class="control-row">
+          <span class="label">Active Clip</span>
+          <select id="select-anim-clip">
+            <option value="0">Default Animation (Clip 0)</option>
+          </select>
+        </div>
+
+        <div class="control-row" style="margin-top: 10px;">
+          <span class="label">Instance Sync Mode</span>
+        </div>
+        <div class="segmented-control">
+          <button class="segment-btn anim-mode-btn" data-mode="sync">Synced</button>
+          <button class="segment-btn anim-mode-btn active" data-mode="random_offset">Random Offset</button>
+          <button class="segment-btn anim-mode-btn" data-mode="mixed_clips">Mix Clips</button>
+        </div>
+
+        <div class="control-row" style="margin-top: 12px;">
+          <span class="label">Playback Speed</span>
+          <span id="val-anim-speed" class="val-badge">1.0x</span>
+        </div>
+        <input type="range" id="input-anim-speed" min="0.1" max="3.0" step="0.1" value="1.0">
+      </div>
+
+      <!-- Instancing & Draw Calls Scaling Card -->
+      <div class="control-group">
+        <div class="group-title">
+          <span>Draw Calls Scaling Impact</span>
+        </div>
+        <div class="inst-metrics-card">
+          <div class="inst-row">
+            <span class="label">Active Instances:</span>
+            <span id="readout-inst-count" class="val-badge">1</span>
+          </div>
+          <div class="inst-row">
+            <span class="label">Resulting Draw Calls:</span>
+            <span id="readout-draw-calls" class="val-badge text-accent">12</span>
+          </div>
+          <div class="inst-row">
+            <span class="label">Calls / Instance Ratio:</span>
+            <span id="readout-call-ratio" class="val-badge">12.0</span>
+          </div>
+        </div>
+        <p class="label" style="line-height: 1.4; margin-top: 8px;">
+          <strong>Skinned Mesh / Unique Clones:</strong> Duplicating independent skeletal models creates $N \times M$ draw calls. Static meshes merged into <code>InstancedMesh</code> collapse all copies down to <strong>1 single draw call</strong>.
+        </p>
+      </div>
+    </div>
+
+    <!-- TAB 3: CAMERA CONTROLS -->
     <div id="tab-camera" class="tab-content">
       <div class="control-group">
         <div class="group-title">
@@ -213,7 +305,7 @@
       </div>
     </div>
 
-    <!-- TAB 3: LIGHTING CONTROLS -->
+    <!-- TAB 4: LIGHTING CONTROLS -->
     <div id="tab-lighting" class="tab-content">
       <!-- Key Light -->
       <div class="control-group">
@@ -304,7 +396,7 @@
       </div>
     </div>
 
-    <!-- TAB 4: HDRI & ENVIRONMENT -->
+    <!-- TAB 5: HDRI & ENVIRONMENT -->
     <div id="tab-environment" class="tab-content">
       <div class="control-group">
         <div class="group-title">
@@ -352,7 +444,7 @@
       </div>
     </div>
 
-    <!-- TAB 5: GROUND & SHADOW CATCHER -->
+    <!-- TAB 6: GROUND & SHADOW CATCHER -->
     <div id="tab-ground" class="tab-content">
       <div class="control-group">
         <div class="group-title">
@@ -405,7 +497,7 @@
       </div>
     </div>
 
-    <!-- TAB 6: POST PROCESSING -->
+    <!-- TAB 7: POST PROCESSING -->
     <div id="tab-postfx" class="tab-content">
       <div class="control-group">
         <div class="group-title">
@@ -455,7 +547,7 @@
       </div>
     </div>
 
-    <!-- TAB 7: MOBILE & DRAW CALL ANALYTICS -->
+    <!-- TAB 8: MOBILE & DRAW CALL ANALYTICS -->
     <div id="tab-performance" class="tab-content">
       <!-- Mobile Health Badge Score -->
       <div class="health-card">
@@ -565,7 +657,7 @@
       </div>
     </div>
 
-    <!-- TAB 8: PRESETS -->
+    <!-- TAB 9: PRESETS -->
     <div id="tab-presets" class="tab-content">
       <div class="group-title" style="margin-bottom: 12px;">
         <span>Select Studio Preset</span>
@@ -582,6 +674,10 @@
     <div class="status-item">
       <span>MODEL:</span>
       <span id="status-model-name" class="status-highlight">Torus Knot</span>
+    </div>
+    <div class="status-item">
+      <span>COPIES:</span>
+      <span id="status-instance-count" class="status-highlight">1x</span>
     </div>
     <div class="status-item">
       <span>DRAW CALLS:</span>

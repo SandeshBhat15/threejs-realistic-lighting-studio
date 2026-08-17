@@ -4,6 +4,7 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { TeapotGeometry } from 'three/examples/jsm/geometries/TeapotGeometry.js';
 
 export class ModelLoaderManager {
@@ -17,12 +18,17 @@ export class ModelLoaderManager {
     this.currentModelGroup.name = 'CurrentModelGroup';
     this.scene.add(this.currentModelGroup);
 
-    this.currentModel = null;
+    this.baseModel = null;
+    this.instanceCount = 1;
+    this.instanceSpacing = 3.0;
+    this.instanceMixers = [];
     this.originalMaterials = new Map();
     this.meshNodeMap = new Map();
-    this.mixer = null;
+    
     this.animations = [];
-    this.currentAction = null;
+    this.selectedClipIndex = 0;
+    this.animationMode = 'random_offset'; // 'sync', 'random_offset', 'mixed_clips'
+    this.animationSpeed = 1.0;
     this.isPlayingAnimation = true;
 
     this.materialMode = 'original';
@@ -45,63 +51,42 @@ export class ModelLoaderManager {
   }
 
   clearCurrentModel() {
-    if (this.currentModel) {
-      this.currentModelGroup.remove(this.currentModel);
-      this.currentModel.traverse((child) => {
-        if (child.isMesh) {
-          child.geometry.dispose();
-          if (Array.isArray(child.material)) {
-            child.material.forEach((mat) => mat.dispose());
-          } else if (child.material) {
-            child.material.dispose();
+    if (this.currentModelGroup) {
+      while (this.currentModelGroup.children.length > 0) {
+        const obj = this.currentModelGroup.children[0];
+        this.currentModelGroup.remove(obj);
+        obj.traverse((child) => {
+          if (child.isMesh) {
+            child.geometry.dispose();
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat) => mat.dispose());
+            } else if (child.material) {
+              child.material.dispose();
+            }
           }
-        }
-      });
-      this.currentModel = null;
+        });
+      }
     }
+    this.baseModel = null;
     this.originalMaterials.clear();
     this.meshNodeMap.clear();
-    if (this.mixer) {
-      this.mixer.stopAllAction();
-      this.mixer = null;
-    }
+    this.instanceMixers.forEach(m => m.stopAllAction());
+    this.instanceMixers = [];
     this.animations = [];
-    this.currentAction = null;
   }
 
   setupLoadedObject(object, animations = []) {
     this.clearCurrentModel();
-    this.currentModel = object;
-    this.currentModelGroup.add(object);
-
-    let meshIdCounter = 0;
-    object.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-
-        const nodeUniqueId = `mesh_${meshIdCounter++}`;
-        child.userData.nodeId = nodeUniqueId;
-        this.meshNodeMap.set(nodeUniqueId, child);
-
-        if (Array.isArray(child.material)) {
-          this.originalMaterials.set(child, child.material.map(m => m.clone()));
-        } else if (child.material) {
-          this.originalMaterials.set(child, child.material.clone());
-        }
-      }
-    });
+    this.baseModel = object;
+    this.animations = animations;
 
     const bbox = new THREE.Box3().setFromObject(object);
     const size = new THREE.Vector3();
     bbox.getSize(size);
-    const center = new THREE.Vector3();
-    bbox.getCenter(center);
 
     const maxDim = Math.max(size.x, size.y, size.z);
-    const targetSize = 4;
+    const targetSize = 3.5;
     const scale = targetSize / (maxDim || 1);
-
     object.scale.set(scale, scale, scale);
 
     const scaledBbox = new THREE.Box3().setFromObject(object);
@@ -112,28 +97,129 @@ export class ModelLoaderManager {
     object.position.y = -scaledBbox.min.y;
     object.position.z = -scaledCenter.z;
 
-    if (animations && animations.length > 0) {
-      this.animations = animations;
-      this.mixer = new THREE.AnimationMixer(object);
-      this.playAnimation(0);
+    this.rebuildInstances();
+  }
+
+  setInstanceCount(count) {
+    this.instanceCount = Math.max(1, Math.min(100, count));
+    this.rebuildInstances();
+  }
+
+  setInstanceSpacing(spacing) {
+    this.instanceSpacing = spacing;
+    this.rebuildInstances();
+  }
+
+  rebuildInstances() {
+    if (!this.baseModel) return;
+
+    while (this.currentModelGroup.children.length > 0) {
+      this.currentModelGroup.remove(this.currentModelGroup.children[0]);
+    }
+    this.instanceMixers.forEach(m => m.stopAllAction());
+    this.instanceMixers = [];
+    this.meshNodeMap.clear();
+    this.originalMaterials.clear();
+
+    const cols = Math.ceil(Math.sqrt(this.instanceCount));
+    const rows = Math.ceil(this.instanceCount / cols);
+    let meshIdCounter = 0;
+
+    for (let i = 0; i < this.instanceCount; i++) {
+      const cloneFunc = SkeletonUtils.clone;
+      const instance = cloneFunc ? cloneFunc(this.baseModel) : this.baseModel.clone(true);
+
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const offsetX = (col - (cols - 1) / 2) * this.instanceSpacing;
+      const offsetZ = (row - (rows - 1) / 2) * this.instanceSpacing;
+
+      instance.position.x = this.baseModel.position.x + offsetX;
+      instance.position.y = this.baseModel.position.y;
+      instance.position.z = this.baseModel.position.z + offsetZ;
+
+      this.currentModelGroup.add(instance);
+
+      instance.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+
+          const nodeUniqueId = `mesh_inst${i}_${meshIdCounter++}`;
+          child.userData.nodeId = nodeUniqueId;
+          this.meshNodeMap.set(nodeUniqueId, child);
+
+          if (Array.isArray(child.material)) {
+            this.originalMaterials.set(child, child.material.map(m => m.clone()));
+          } else if (child.material) {
+            this.originalMaterials.set(child, child.material.clone());
+          }
+        }
+      });
+
+      if (this.animations && this.animations.length > 0) {
+        const mixer = new THREE.AnimationMixer(instance);
+        let clipIdx = this.selectedClipIndex;
+
+        if (this.animationMode === 'mixed_clips') {
+          clipIdx = i % this.animations.length;
+        }
+
+        const clip = this.animations[clipIdx] || this.animations[0];
+        if (clip) {
+          const action = mixer.clipAction(clip);
+          action.play();
+
+          if (this.animationMode === 'random_offset') {
+            action.time = Math.random() * clip.duration;
+          }
+        }
+        this.instanceMixers.push(mixer);
+      }
     }
 
     if (this.materialMode !== 'original') {
       this.setMaterialMode(this.materialMode);
     }
 
-    const stats = this.getMeshStats(object);
+    const baseStats = this.getMeshStats(this.baseModel);
     const subMeshList = this.getSubMeshList();
 
     if (this.onModelLoaded) {
       this.onModelLoaded({
-        name: object.name || '3D Model',
-        polyCount: stats.triangles,
-        vertexCount: stats.vertices,
+        name: this.baseModel.name || '3D Model',
+        instanceCount: this.instanceCount,
+        polyCount: baseStats.triangles * this.instanceCount,
+        vertexCount: baseStats.vertices * this.instanceCount,
+        basePolyCount: baseStats.triangles,
         animations: this.animations.map(a => a.name || 'Clip'),
         subMeshes: subMeshList
       });
     }
+  }
+
+  setAnimationClip(clipIndex) {
+    this.selectedClipIndex = clipIndex;
+    this.rebuildInstances();
+  }
+
+  setAnimationMode(mode) {
+    this.animationMode = mode;
+    this.rebuildInstances();
+  }
+
+  setAnimationSpeed(speed) {
+    this.animationSpeed = speed;
+    this.instanceMixers.forEach(mixer => {
+      mixer.timeScale = speed;
+    });
+  }
+
+  toggleAnimationPlay() {
+    this.isPlayingAnimation = !this.isPlayingAnimation;
+    this.instanceMixers.forEach(mixer => {
+      mixer.timeScale = this.isPlayingAnimation ? this.animationSpeed : 0;
+    });
   }
 
   getSubMeshList() {
@@ -316,9 +402,9 @@ export class ModelLoaderManager {
 
   setMaterialMode(mode) {
     this.materialMode = mode;
-    if (!this.currentModel) return;
+    if (!this.currentModelGroup) return;
 
-    this.currentModel.traverse((child) => {
+    this.currentModelGroup.traverse((child) => {
       if (child.isMesh) {
         if (mode === 'original') {
           const orig = this.originalMaterials.get(child);
@@ -345,9 +431,9 @@ export class ModelLoaderManager {
     this.customRoughness = roughness;
     this.customMetalness = metalness;
 
-    if (!this.currentModel) return;
+    if (!this.currentModelGroup) return;
 
-    this.currentModel.traverse((child) => {
+    this.currentModelGroup.traverse((child) => {
       if (child.isMesh && child.material && child.material.isMeshStandardMaterial) {
         child.material.roughness = roughness;
         child.material.metalness = metalness;
@@ -355,23 +441,9 @@ export class ModelLoaderManager {
     });
   }
 
-  playAnimation(index) {
-    if (!this.mixer || !this.animations[index]) return;
-    if (this.currentAction) this.currentAction.stop();
-    this.currentAction = this.mixer.clipAction(this.animations[index]);
-    this.currentAction.play();
-    this.isPlayingAnimation = true;
-  }
-
-  toggleAnimationPlay() {
-    if (!this.currentAction) return;
-    this.isPlayingAnimation = !this.isPlayingAnimation;
-    this.currentAction.paused = !this.isPlayingAnimation;
-  }
-
   update(delta) {
-    if (this.mixer && this.isPlayingAnimation) {
-      this.mixer.update(delta);
+    if (this.instanceMixers.length > 0 && this.isPlayingAnimation) {
+      this.instanceMixers.forEach(mixer => mixer.update(delta));
     }
   }
 }
